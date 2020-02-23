@@ -1,0 +1,2 @@
+include ':common', ':talos-main', ':talos-remote', ':android-common'
+rootProject.name='Talos Rowing'

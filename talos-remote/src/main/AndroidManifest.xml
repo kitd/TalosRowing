@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="org.nargila.robostroke.android.remote"
+    android:sharedUserId="talos.rowing"
+    android:sharedUserLabel="@string/sharedUserLabel">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-feature android:name="android.hardware.wifi" />
+    <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
+
+    <application
+        android:icon="@drawable/icon"
+        android:label="@string/app_name">
+        <service
+            android:name="TalosReceiverService"
+            android:exported="false"
+            android:process="org.nargila.robostroke.android.app">
+            <intent-filter>
+                <action android:name="org.nargila.robostroke.android.remote.TalosReceiverService" />
+            </intent-filter>
+        </service>
+        <service
+            android:name="TalosBroadcastService"
+            android:exported="false"
+            android:process="org.nargila.robostroke.android.app">
+            <intent-filter>
+                <action android:name="org.nargila.robostroke.android.remote.TalosBroadcastService" />
+            </intent-filter>
+        </service>
+    </application>
+</manifest>
