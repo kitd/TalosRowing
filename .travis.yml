@@ -1,6 +1,6 @@
 language:       android
 dist:           bionic
-jdk:            oraclejdk8
+jdk:            oraclejdk11
 if:             tag IS blank
 android:
   components:
