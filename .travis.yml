@@ -11,7 +11,6 @@ android:
   - android-29
   - extra-google-m2repository
 before_install:
-- yes | sdkmanager "platforms;android-29"
 - chmod a+x ./scripts/deploy.sh
 - chmod a+x ./scripts/changelog.sh
 - git fetch --tags
