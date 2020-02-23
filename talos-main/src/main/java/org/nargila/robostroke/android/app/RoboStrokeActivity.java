@@ -20,14 +20,16 @@
 package org.nargila.robostroke.android.app;
 
 
-import android.app.Activity;
+import android.Manifest;
 import android.app.AlertDialog;
 import android.app.Dialog;
 import android.app.ProgressDialog;
+import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager;
 import android.content.pm.PackageManager.NameNotFoundException;
 import android.content.res.Configuration;
 import android.graphics.Color;
@@ -48,6 +50,10 @@ import android.widget.ImageButton;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.ToggleButton;
+
+import androidx.annotation.NonNull;
+import androidx.annotation.RequiresApi;
+import androidx.appcompat.app.AppCompatActivity;
 
 import org.acra.ACRA;
 import org.apache.log4j.Level;
@@ -97,7 +103,7 @@ import java.util.zip.GZIPOutputStream;
 /**
  * AndroidRoboStroke application entry point and main activity/
  */
-public class RoboStrokeActivity extends Activity implements RoboStrokeConstants, ParameterListenerOwner {
+public class RoboStrokeActivity extends AppCompatActivity implements RoboStrokeConstants, ParameterListenerOwner {
 
     private static final String MIME_TYPE_ROBOSTROKE_SESSION = "application/vnd.robostroke.session";
 
@@ -109,19 +115,22 @@ public class RoboStrokeActivity extends Activity implements RoboStrokeConstants,
 
     private static final int HIGHLIGHT_PADDING_SIZE = 5;
 
+    private static final int PERMISSION_FINE_GPS_REQUEST_CODE = 2302;
+    private static final int PERMISSION_WRITE_STORAGE_REQUEST_CODE = 2303;
+
     private static final Logger logger = LoggerFactory.getLogger(RoboStrokeActivity.class);
     static AlertDialog m_AlertDlg;
     final Handler handler = new Handler();
     final RoboStroke roboStroke =
             new RoboStroke(new AndroidLocationDistanceResolver(), new TalosBroadcastServiceConnector(this));
     private final ScreenStayupLock screenLock;
-    private final SessionFileHandler sessionFileHandler = new SessionFileHandler();
-    private NotificationHelper notificationHelper;
-    private RecordSyncLeaderDialog recordLeaderDialog;
+    private final SessionFileHandler sessionFileHandler = new SessionFileHandler(this);
     ScheduledExecutorService scheduler;
     PreferencesHelper preferencesHelper;
     GraphPanelDisplayManager graphPanelDisplayManager;
     MetersDisplayManager metersDisplayManager;
+    private NotificationHelper notificationHelper;
+    private RecordSyncLeaderDialog recordLeaderDialog;
     private boolean recordingOn;
     private Menu menu;
     private boolean replayPaused;
@@ -176,17 +185,17 @@ public class RoboStrokeActivity extends Activity implements RoboStrokeConstants,
         preferencesHelper = new PreferencesHelper(this); // handles preferences -> parameter synchronization
 
         if (preferencesHelper.getPref(PreferencesHelper.PREFERENCE_KEY_PREFERENCES_LOG, false)) {
-            ConfigureLog4J.configure(Level.DEBUG, "talos-main");
+            ConfigureLog4J.configure(this, Level.DEBUG, "talos-main");
         } else {
-            ConfigureLog4J.configure(null);
+            ConfigureLog4J.configure(this, null);
         }
 
         setContentView(R.layout.main);
 
         notificationHelper = new NotificationHelper(this, R.drawable.icon_small322);
 
-
-        ACRA.getErrorReporter().putCustomData("uuid", preferencesHelper.getUUID());
+        if (!BuildConfig.DEBUG)
+            ACRA.getErrorReporter().putCustomData("uuid", preferencesHelper.getUUID());
 
         roboStroke.setErrorListener(e -> notificationHelper.notifyError(ROBOSTROKE_ERROR,
                 e.getMessage(), "robostroke error", "robostroke error"));
@@ -206,7 +215,7 @@ public class RoboStrokeActivity extends Activity implements RoboStrokeConstants,
 
             @Override
             public void onClick(View arg0) {
-                if (!isReplaying() && FileHelper.hasExternalStorage()) {
+                if (!isReplaying() && FileHelper.hasExternalStorage(arg0.getContext())) {
                     roboStroke.getParameters().setParam(ParamKeys.PARAM_SESSION_RECORDING_ON.getId(), !recording);
                     recording = !recording;
                 }
@@ -226,12 +235,34 @@ public class RoboStrokeActivity extends Activity implements RoboStrokeConstants,
         roboStroke.getParameters().setParam(ParamKeys.PARAM_SENSOR_ORIENTATION_LANDSCAPE.getId(),
                 getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE);
 
-        start(new DataInputInfo());
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+
+            if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(new String[]{
+                        Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_BACKGROUND_LOCATION
+                }, PERMISSION_FINE_GPS_REQUEST_CODE);
+            } else if (checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(new String[]{
+                        Manifest.permission.WRITE_EXTERNAL_STORAGE
+                }, PERMISSION_WRITE_STORAGE_REQUEST_CODE);
+                start(new DataInputInfo());
+            } else start(new DataInputInfo());
+
+        } else start(new DataInputInfo());
 
     }
 
+    @RequiresApi(api = Build.VERSION_CODES.M)
     @Override
-    public void onConfigurationChanged(Configuration newConfig) {
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+
+        if (requestCode == PERMISSION_FINE_GPS_REQUEST_CODE && checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED)
+            start(new DataInputInfo());
+    }
+
+    @Override
+    public void onConfigurationChanged(@NonNull Configuration newConfig) {
 
         boolean landscape = getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE;
 
@@ -350,15 +381,23 @@ public class RoboStrokeActivity extends Activity implements RoboStrokeConstants,
     }
 
     private boolean recheckExternalStorage() {
-        if (!FileHelper.hasExternalStorage() || FileHelper.getDir(ROBOSTROKE_DATA_DIR) == null) {
+        if (!FileHelper.hasExternalStorage(this) || FileHelper.getDir(this, ROBOSTROKE_DATA_DIR) == null) {
             menu.findItem(R.id.menu_replay_start).setEnabled(false);
             menu.findItem(R.id.menu_record_start).setEnabled(false);
 
             notificationHelper.toast("This feature is unavalable, because data storage has been deactivated.");
 
             return false;
+        } else {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                if (checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+                    requestPermissions(new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, PERMISSION_WRITE_STORAGE_REQUEST_CODE);
+                    return false;
+                } else {
+                    return true;
+                }
+            }
         }
-
         return true;
     }
 
@@ -628,7 +667,7 @@ public class RoboStrokeActivity extends Activity implements RoboStrokeConstants,
     public boolean onPrepareOptionsMenu(Menu menu) {
         final boolean replay = isReplaying();
 
-        boolean hasExternalStorage = FileHelper.hasExternalStorage();
+        boolean hasExternalStorage = FileHelper.hasExternalStorage(this);
 
         boolean enableStart = hasExternalStorage && !replay && !recordingOn;
 
@@ -664,7 +703,7 @@ public class RoboStrokeActivity extends Activity implements RoboStrokeConstants,
     }
 
     @Override
-    public boolean onMenuItemSelected(int featureId, MenuItem item) {
+    public boolean onOptionsItemSelected(@NonNull MenuItem item) {
         switch (item.getItemId()) {
             case R.id.menu_replay_start:
 
@@ -813,13 +852,18 @@ public class RoboStrokeActivity extends Activity implements RoboStrokeConstants,
     }
 
     private void cleanTmpDir() {
-        if (FileHelper.hasExternalStorage()) {
+        if (FileHelper.hasExternalStorage(this)) {
 
-            File tmpDir = FileHelper.getFile(ROBOSTROKE_DATA_DIR, "tmp");
+            File tmpDir = FileHelper.getFile(this, ROBOSTROKE_DATA_DIR, "tmp");
 
-            tmpDir.mkdir();
-
-            FileHelper.cleanDir(tmpDir, TimeUnit.SECONDS.toMillis(30));
+            if (tmpDir.mkdir())
+                FileHelper.cleanDir(tmpDir, TimeUnit.SECONDS.toMillis(30));
+        } else {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                requestPermissions(new String[]{
+                        Manifest.permission.WRITE_EXTERNAL_STORAGE
+                }, PERMISSION_WRITE_STORAGE_REQUEST_CODE);
+            }
         }
     }
 
@@ -906,6 +950,7 @@ public class RoboStrokeActivity extends Activity implements RoboStrokeConstants,
         final boolean temporary;
         final String host;
         final int port;
+
         DataInputInfo(File file, boolean temporary) {
             this.inputType = InputType.FILE;
             this.file = file;
@@ -941,6 +986,11 @@ public class RoboStrokeActivity extends Activity implements RoboStrokeConstants,
 
         boolean wasRecording;
         Date sessionTimestamp = new Date();
+        Context context;
+
+        public SessionFileHandler(Context context) {
+            this.context = context;
+        }
 
         private String sessionTag() {
             return DateFormat.format("kk:mm:ss", sessionTimestamp) + "";
@@ -954,7 +1004,7 @@ public class RoboStrokeActivity extends Activity implements RoboStrokeConstants,
 
                     sessionTimestamp = new Date();
 
-                    File logFile = recordingOn ? FileHelper.getFile(ROBOSTROKE_DATA_DIR, "" + System.currentTimeMillis() + "-dataInput.txt") : null;
+                    File logFile = recordingOn ? FileHelper.getFile(context, ROBOSTROKE_DATA_DIR, "" + System.currentTimeMillis() + "-dataInput.txt") : null;
 
                     roboStroke.setDataLogger(logFile);
 
@@ -1038,7 +1088,7 @@ public class RoboStrokeActivity extends Activity implements RoboStrokeConstants,
                                 .show();
                     } else {
 
-                        File tmpdir = FileHelper.getFile(ROBOSTROKE_DATA_DIR, "tmp");
+                        File tmpdir = FileHelper.getFile(context, ROBOSTROKE_DATA_DIR, "tmp");
 
                         tmpdir.mkdir();
 
@@ -1259,7 +1309,7 @@ public class RoboStrokeActivity extends Activity implements RoboStrokeConstants,
         }
 
         private File createTmpSessionOutputFile(String suffix) throws IOException {
-            File tmpdir = FileHelper.getFile(ROBOSTROKE_DATA_DIR, "tmp");
+            File tmpdir = FileHelper.getFile(context, ROBOSTROKE_DATA_DIR, "tmp");
 
             tmpdir.mkdir();
 

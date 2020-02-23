@@ -18,14 +18,11 @@
  */
 package org.nargila.robostroke.android.app;
 
-import android.os.Environment;
-
 import org.nargila.robostroke.common.Pair;
 
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
 
@@ -35,7 +32,7 @@ class ReplayFileList {
 
     ReplayFileList(RoboStrokeActivity owner) {
 
-        File dir = new File(Environment.getExternalStorageDirectory(), "RoboStroke");
+        File dir = new File(owner.getExternalFilesDir(null), "RoboStroke");
 
         File[] fileList = dir.listFiles();
 

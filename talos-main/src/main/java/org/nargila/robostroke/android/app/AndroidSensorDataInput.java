@@ -19,8 +19,10 @@
 
 package org.nargila.robostroke.android.app;
 
+import android.Manifest;
 import android.app.Activity;
 import android.content.Context;
+import android.content.pm.PackageManager;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
@@ -28,6 +30,7 @@ import android.hardware.SensorManager;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.HandlerThread;
@@ -59,6 +62,13 @@ public class AndroidSensorDataInput extends SensorDataInputBase {
     public AndroidSensorDataInput(RoboStrokeActivity owner) {
 
         sensorThread = new SensorDataThread(owner);
+
+        // "gps" location provider requires the ACCESS_FINE_LOCATION permission.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M)
+            if (owner.checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                throw new SecurityException();
+            }
+
         gpsThread = new GPSDataThread(owner);
 
         sensorDelay = getSensorDelay(owner);
@@ -213,7 +223,6 @@ public class AndroidSensorDataInput extends SensorDataInputBase {
         protected void onLooperPrepared() {
             looper = getLooper();
             locationManager = (LocationManager) this.owner.getSystemService(Context.LOCATION_SERVICE);
-
             resetListener();
         }
 
@@ -221,6 +230,17 @@ public class AndroidSensorDataInput extends SensorDataInputBase {
             locationManager.removeUpdates(this);
             try {
                 float gpsMinDistance = 0;
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M)
+                    if (owner.checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                        // TODO: Consider calling
+                        //    Activity#requestPermissions
+                        // here to request the missing permissions, and then overriding
+                        //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
+                        //                                          int[] grantResults)
+                        // to handle the case where the user grants the permission. See the documentation
+                        // for Activity#requestPermissions for more details.
+                        return;
+                    }
                 locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, (long) gpsMinTime, gpsMinDistance, this, looper);
             } catch (IllegalArgumentException e) {
                 owner.reportError(e, "GPS update registration failed");

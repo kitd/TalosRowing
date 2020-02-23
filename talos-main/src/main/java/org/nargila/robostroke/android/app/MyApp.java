@@ -39,6 +39,7 @@ public class MyApp extends Application {
         super.onCreate();
 
         // The following line triggers the initialization of ACRA
-        ACRA.init(this);
+        if (!BuildConfig.DEBUG)
+            ACRA.init(this);
     }
 }

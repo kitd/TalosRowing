@@ -2,11 +2,6 @@ import java.text.SimpleDateFormat
 
 apply plugin: 'com.android.application'
 
-static def buildDate() {
-    def df = new SimpleDateFormat("yyyyMMdd")
-    return df.format(new Date())
-}
-
 def appVersionCode = Integer.valueOf(System.getenv("TRAVIS_BUILD_NUMBER") ?: 0)
 
 android {
@@ -29,11 +24,6 @@ android {
         } else {
             versionCode rootProject.ext.versionCode
             versionName rootProject.ext.versionName
-            android.applicationVariants.all { variant ->
-                variant.outputs.all {
-                    outputFileName = "TalosRowing-${versionName}-${buildDate()}-release.apk"
-                }
-            }
         }
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
@@ -58,6 +48,11 @@ dependencies {
 
     implementation project(path: ':android-common')
     implementation project(path: ':common')
+
+    implementation 'androidx.core:core:1.2.0'
+    implementation 'androidx.appcompat:appcompat:1.1.0'
+    implementation 'com.google.android.material:material:1.1.0'
+    implementation 'androidx.annotation:annotation:1.1.0'
 
     // https://mvnrepository.com/artifact/org.slf4j/slf4j-api
     implementation "org.slf4j:slf4j-api:${rootProject.ext.slf4jVersion}"

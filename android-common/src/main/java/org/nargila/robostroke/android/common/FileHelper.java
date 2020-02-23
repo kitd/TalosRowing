@@ -19,6 +19,10 @@
 
 package org.nargila.robostroke.android.common;
 
+import android.Manifest;
+import android.content.Context;
+import android.content.pm.PackageManager;
+import android.os.Build;
 import android.os.Environment;
 
 import org.slf4j.Logger;
@@ -40,15 +44,15 @@ public class FileHelper {
     /**
      * return 1st level directory on root of external storage directory - creating it if necessary
      */
-    public static File getDir(String dirName) {
-        File root = Environment.getExternalStorageDirectory();
+    public static File getDir(Context context, String dirName) {
+        File root = context.getExternalFilesDir(null);
+        if (root == null) return null;
         if (root.canWrite()) {
 
             File outdir = new File(root, dirName);
 
-            outdir.mkdir();
-
-            touchNoMedia(outdir);
+            if (outdir.mkdir())
+                touchNoMedia(outdir);
 
             return outdir;
         }
@@ -80,8 +84,8 @@ public class FileHelper {
      * @param fileName name of file
      * @return file object
      */
-    public static File getFile(String dirName, String fileName) {
-        File outdir = getDir(dirName);
+    public static File getFile(Context context, String dirName, String fileName) {
+        File outdir = getDir(context, dirName);
 
         if (outdir != null) {
             return new File(outdir, fileName);
@@ -91,10 +95,14 @@ public class FileHelper {
 
     }
 
-    public static boolean hasExternalStorage() {
+    public static boolean hasExternalStorage(Context context) {
         String state = Environment.getExternalStorageState();
 
-        return Environment.MEDIA_MOUNTED.equals(state);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            return Environment.MEDIA_MOUNTED.equals(state) && context.checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED;
+        } else {
+            return Environment.MEDIA_MOUNTED.equals(state);
+        }
     }
 
     public static void cleanDir(File dir, long olderThen) {
