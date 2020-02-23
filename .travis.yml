@@ -1,5 +1,5 @@
 language:       android
-dist:           bionic
+dist:           trusty
 jdk:            oraclejdk11
 if:             tag IS blank
 android:
