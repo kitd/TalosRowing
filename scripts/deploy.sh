@@ -16,9 +16,9 @@
 
 CHANGELOG="$(./scripts/changelog.sh)"
 
-rm -f app/build/outputs/apk/debug/output.json
+rm -f talos-main/build/outputs/apk/debug/output.json
 # shellcheck disable=SC2012
-APK_NAME_TALOS=$(ls -1 app/build/outputs/apk/debug/ | tr -d '\n')
+APK_NAME_TALOS=$(ls -1 talos-main/build/outputs/apk/debug/ | tr -d '\n')
 
 ## Deploy to zeevox.net
 
