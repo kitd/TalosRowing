@@ -26,7 +26,7 @@ curl -F "dir=/files/CI/TalosRowing/" -F "file=@${APK_NAME_TALOS}" -u "${WEBSERVE
 
 ## Deploy to Telegram
 
-curl -F chat_id="-1001395950405" -F document=@"app/build/outputs/apk/debug/${APK_NAME_TALOS}" https://api.telegram.org/bot${BOT_TOKEN}/sendDocument
+curl -F chat_id="-1001395950405" -F document=@"talos-main/build/outputs/apk/debug/${APK_NAME_TALOS}" https://api.telegram.org/bot${BOT_TOKEN}/sendDocument
 curl -F chat_id="-1001395950405" -F text="${CHANGELOG}" -F parse_mode="HTML" -F disable_web_page_preview="true" https://api.telegram.org/bot${BOT_TOKEN}/sendMessage
 
 ## Print changelog
