@@ -27,7 +27,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import org.nargila.robostroke.RoboStrokeEventBus;
 
-class ParameterServiceTest {
+public class ParameterServiceTest {
 	
 	private static final ParameterInfo BOOLEAN_PARAM = new ParameterInfo() {
 		

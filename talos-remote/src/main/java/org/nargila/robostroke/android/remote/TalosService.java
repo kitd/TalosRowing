@@ -148,13 +148,16 @@ public abstract class TalosService extends Service {
 
         long when = System.currentTimeMillis();
 
-        Notification notification = new Notification(error ? R.drawable.icon : android.R.drawable.ic_dialog_alert, tickerText, when);
-
-
         Intent notificationIntent = new Intent(getClass().getName());
         PendingIntent contentIntent = PendingIntent.getService(this, 0, notificationIntent, 0);
 
-        notification.setLatestEventInfo(this, contentTitle, (CharSequence) msg, contentIntent);
+        Notification notification = new Notification.Builder(this).setSmallIcon(error ? R.drawable.icon : android.R.drawable.ic_dialog_alert)
+                .setTicker(tickerText)
+                .setWhen(when)
+                .setContentTitle(contentTitle)
+                .setContentText(msg)
+                .setContentIntent(contentIntent)
+                .build();
 
         notification.flags |= Notification.FLAG_ONGOING_EVENT;
         notificationManager.notify(SERVICE_NOTIFICATION_ID, notification);

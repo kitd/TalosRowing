@@ -29,7 +29,7 @@ import org.nargila.robostroke.stroke.RowingSplitMode;
 
 import java.util.concurrent.atomic.AtomicReference;
 
-class RoboStrokeTest extends TestProperties {
+public class RoboStrokeTest extends TestProperties {
 
     private TestRoboStroke test;
 

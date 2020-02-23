@@ -5,7 +5,7 @@ import org.nargila.robostroke.common.ClockTime;
 import java.io.InputStream;
 import java.util.Properties;
 
-class TestProperties {
+public class TestProperties {
 
     private final String testName;
     private final Properties testProperties = new Properties();

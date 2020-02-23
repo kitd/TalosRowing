@@ -25,10 +25,15 @@ android {
         targetCompatibility = javaVersion
     }
 
+    lintOptions {
+        abortOnError false
+    }
 }
 
 dependencies {
     implementation fileTree(dir: 'libs', include: ['*.jar'])
+
+    implementation project(path: ':common')
 
     // https://mvnrepository.com/artifact/org.slf4j/slf4j-api
     implementation "org.slf4j:slf4j-api:${rootProject.ext.slf4jVersion}"
@@ -41,5 +46,4 @@ dependencies {
 
     // https://mvnrepository.com/artifact/de.mindpipe.android/android-logging-log4j
     implementation "de.mindpipe.android:android-logging-log4j:1.0.3"
-    implementation project(path: ':common')
 }

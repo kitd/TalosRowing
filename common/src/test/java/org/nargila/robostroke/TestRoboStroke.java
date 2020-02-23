@@ -30,7 +30,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.channels.Channels;
 
-class TestRoboStroke {
+public class TestRoboStroke {
 
 
     private static File logFile;
