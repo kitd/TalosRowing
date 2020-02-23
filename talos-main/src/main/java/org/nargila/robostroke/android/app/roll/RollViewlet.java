@@ -32,22 +32,23 @@ import android.view.View;
 import android.widget.FrameLayout;
 import android.widget.TextView;
 
+import java.util.Locale;
+
 class RollViewlet  {
 	
-	private Handler mHandler = new Handler();
+	private final Handler mHandler = new Handler();
 	private static final int LEFT_SIDE = -1;
 	private static final int RIGHT_SIDE = 1;
 	
 	private float roll;
-	private View bars;
-	private TextView text_primary;
-	private TextView text_secondary;
-	private TextView type_text;
-	private float range = 9.9f;
-	private Paint rightPaint;
-	private Paint leftPaint;
-	private Paint middleLinePaint;
-	private Paint backgroundPaint;
+	private final View bars;
+	private final TextView text_primary;
+	private final TextView text_secondary;
+	private final TextView type_text;
+	private final float range = 9.9f;
+	private final Paint rightPaint;
+	private final Paint leftPaint;
+	private final Paint backgroundPaint;
 	private final View view;
 	
 	RollViewlet(Context context, View view) {
@@ -63,10 +64,10 @@ class RollViewlet  {
 			}
 		};
 		
-		text_primary = (TextView) view.findViewById(R.id.roll_text_primary);
-		text_secondary = (TextView) view.findViewById(R.id.roll_text_secondary);
-		type_text = (TextView) view.findViewById(R.id.roll_type_text);
-		FrameLayout frame = (FrameLayout) view.findViewById(R.id.roll_canvas_frame);
+		text_primary = view.findViewById(R.id.roll_text_primary);
+		text_secondary = view.findViewById(R.id.roll_text_secondary);
+		type_text = view.findViewById(R.id.roll_type_text);
+		FrameLayout frame = view.findViewById(R.id.roll_canvas_frame);
 		frame.addView(bars, new FrameLayout.LayoutParams(
 				FrameLayout.LayoutParams.FILL_PARENT, 
 				FrameLayout.LayoutParams.FILL_PARENT));
@@ -77,7 +78,7 @@ class RollViewlet  {
 		leftPaint.setColor(Color.RED);
 		backgroundPaint = new Paint();
 		backgroundPaint.setColor(Color.BLACK);
-		middleLinePaint = new Paint();
+		Paint middleLinePaint = new Paint();
 		middleLinePaint.setColor(Color.YELLOW);
 	}
 
@@ -106,18 +107,16 @@ class RollViewlet  {
 		
 	    this.roll = NumberHelper.validRange(rollValues[0], -range, range);
 		
-		mHandler.post(new Runnable() {
-			public void run() {
-				text_primary.setText(String.format("%02.1f", Math.abs(roll)));
-				
-				if (rollValues.length > 1) {
-					float roll2 = NumberHelper.validRange(rollValues[1], -range, range); 
-					text_secondary.setText(String.format("%02.1f", Math.abs(roll2)));
-					text_secondary.setTextColor(roll2 > 0 ? Color.GREEN : Color.RED);
-					text_secondary.setVisibility(View.VISIBLE);
-				} else {
-					text_secondary.setVisibility(View.INVISIBLE);					
-				}
+		mHandler.post(() -> {
+			text_primary.setText(String.format(Locale.UK, "%02.1f", Math.abs(roll)));
+
+			if (rollValues.length > 1) {
+				float roll2 = NumberHelper.validRange(rollValues[1], -range, range);
+				text_secondary.setText(String.format(Locale.UK, "%02.1f", Math.abs(roll2)));
+				text_secondary.setTextColor(roll2 > 0 ? Color.GREEN : Color.RED);
+				text_secondary.setVisibility(View.VISIBLE);
+			} else {
+				text_secondary.setVisibility(View.INVISIBLE);
 			}
 		});
 

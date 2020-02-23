@@ -1,18 +1,18 @@
 /*
  * Copyright (c) 2011 Tal Shalif
- * 
+ *
  * This file is part of Talos-Rowing.
- * 
+ *
  * Talos-Rowing is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * Talos-Rowing is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with Talos-Rowing.  If not, see <http://www.gnu.org/licenses/>.
  */
@@ -20,62 +20,46 @@
 
 package org.nargila.robostroke.data;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.RandomAccessFile;
-
 import org.nargila.robostroke.RoboStroke;
 import org.nargila.robostroke.common.Pair;
 import org.nargila.robostroke.data.DataRecord.Type;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
+import java.io.IOException;
+import java.io.RandomAccessFile;
+import java.util.Locale;
+
 /**
- * SensorDataInput implementation for replaying data from a file 
- * @author tshalif
+ * SensorDataInput implementation for replaying data from a file
  *
+ * @author tshalif
  */
 public class FileDataInput extends RecordDataInput implements Runnable {
 
     private static final int MAX_VALIDATION_LINE_COUNT = 100;
-
-    private final boolean batchMode = Boolean.getBoolean(FileDataInput.class.getName() + ".batchMode");
-
     private static final Logger logger = LoggerFactory.getLogger(FileDataInput.class);
-
     private static final int SKIP_BYTES = 300;
-
-    protected final RandomAccessFile reader;
-
-    private long setPosRequested = -1;
-
-    private boolean paused;
-
-    private Thread runThread;
-
-    private boolean requestStop;
-
-    protected final long fileLength;
-
-    private long lastProgressNotifyTime;
-
+    final RandomAccessFile reader;
+    final long fileLength;
+    private final boolean batchMode = Boolean.getBoolean(FileDataInput.class.getName() + ".batchMode");
     private final File dataFile;
-
+    private final long firstTimestamp;
+    private final String uuid;
+    private final Object seekLock = "";
+    private long setPosRequested = -1;
+    private boolean paused;
+    private Thread runThread;
+    private boolean requestStop;
+    private long lastProgressNotifyTime;
     private ClockProvider clockProvider = new SystemClockProvider();
-
     private boolean resetClockRequired;
-
     private long startTimeOffset;
 
-    private final long firstTimestamp;
-
-    private final String uuid;
-
-	private Object seekLock = "";
-    
     public FileDataInput(RoboStroke roboStroke, File dataFile) throws IOException {
         super(roboStroke);
-        
+
         this.dataFile = dataFile;
         this.reader = new RandomAccessFile(dataFile, "r");
         fileLength = dataFile.length();
@@ -83,52 +67,85 @@ public class FileDataInput extends RecordDataInput implements Runnable {
         setSeakable(true);
 
         Pair<String, Long> p = checkVersion();
-        
+
         uuid = p.first;
         firstTimestamp = p.second;
 
     }
 
+    private static Pair<Long /* record timestamp */, DataRecord> parseRecord(String line) {
+        return parseRecord(line, false);
+    }
+
+    static Pair<Long /* record timestamp */, DataRecord> parseRecord(String line, boolean force) {
+
+        String[] vals = readRecordLine(line);
+
+        if (vals != null) {
+
+            Long logTimestamp = new Long(vals[0]);
+
+            DataRecord.Type type = DataRecord.Type.valueOf(vals[1]);
+
+            if ((type.isReplayableEvent || force) && type.isParsableEvent) {
+                return Pair.create(logTimestamp, DataRecord.create(type, Long.parseLong(vals[2]), vals[3]));
+            }
+        }
+
+        return null;
+    }
+
+    private static String[] readRecordLine(String line) {
+        int eorIdx;
+        if ((eorIdx = line.lastIndexOf(SessionRecorderConstants.END_OF_RECORD)) == -1) {
+            return null;
+        }
+
+        String s = line.substring(0, eorIdx);
+
+        return s.split(" +");
+    }
+
     public long getFirstTimestamp() {
         return firstTimestamp;
     }
-    
+
     public String getUuid() {
         return uuid;
     }
-    
-    public void setClock(ClockProvider clockProvider) {
-        this.clockProvider = clockProvider;
-    }
-    
+
     public ClockProvider getClock() {
         return clockProvider;
     }
-    
-    public File getDataFile() {
+
+    protected void setClock(ClockProvider clockProvider) {
+        this.clockProvider = clockProvider;
+    }
+
+    private File getDataFile() {
         return dataFile;
     }
 
-    protected void setStartTimeOffset(long startTimeOffset) {
+    void setStartTimeOffset(long startTimeOffset) {
         this.startTimeOffset = startTimeOffset;
     }
 
-    private Pair<String /* UUID */, Long /* firstTimestamp */> checkVersion() throws IOException, SessionFileVersionError {
+    private Pair<String /* UUID */, Long /* firstTimestamp */> checkVersion() throws IOException {
         int version = -1;
         long firstTimestamp = 0;
         String uuid = null;
         boolean validVersion = false;
         int lineNum = 0;
-        
+
         do {
             String line = reader.readLine();
-            
+
             lineNum++;
-            
+
             if (line == null) {
                 break;
             }
-            
+
             String[] vals = readRecordLine(line);
 
             if (vals != null) {
@@ -146,7 +163,7 @@ public class FileDataInput extends RecordDataInput implements Runnable {
                         if (lineNum != 1) {
                             throw new IllegalArgumentException("LOGFILE_VERSION must appear in the first line of the data file");
                         }
-                        
+
                         version = new Integer(vals[3]);
                         firstTimestamp = new Long(vals[0]);
                         if (version == SessionRecorderConstants.LOGFILE_VERSION) {
@@ -165,47 +182,47 @@ public class FileDataInput extends RecordDataInput implements Runnable {
 
         if (!validVersion) {
             throw new SessionFileVersionError(version);
-        }		
-        
+        }
+
         if (uuid == null) {
             throw new SessionFileVersionError("UUID was not found within the first " + MAX_VALIDATION_LINE_COUNT + " lines of data log file");
         }
-        
+
         return Pair.create(uuid, firstTimestamp);
     }
 
     public void setTime(long time) throws IOException {
-    	synchronized (seekLock) {
-    
-    		reader.seek(0);
-    		
-    		String line;
-    		
-    		while ((line = reader.readLine()) != null) {
-        
-    			String[] vals = readRecordLine(line);
+        synchronized (seekLock) {
 
-    			if (vals == null) {
-    				continue;
-    			}
-    				
-    			long ts = new Long(vals[0]);
-    			
-    			long curTime = ts - firstTimestamp;
-    			
-    			if (curTime >= time) {
-    				break;
-    			}
-    		}
-    	}
+            reader.seek(0);
+
+            String line;
+
+            while ((line = reader.readLine()) != null) {
+
+                String[] vals = readRecordLine(line);
+
+                if (vals == null) {
+                    continue;
+                }
+
+                long ts = new Long(vals[0]);
+
+                long curTime = ts - firstTimestamp;
+
+                if (curTime >= time) {
+                    break;
+                }
+            }
+        }
     }
 
     private void seekPos(long pos) {
-    	synchronized (seekLock) {
-    		setPosRequested = pos;
-		}
+        synchronized (seekLock) {
+            setPosRequested = pos;
+        }
     }
-    
+
     @Override
     public void run() {
         String l = "";
@@ -216,28 +233,28 @@ public class FileDataInput extends RecordDataInput implements Runnable {
                 Thread.yield();
 
                 long pos = reader.getFilePointer();
-                                
-                synchronized (seekLock ) {
 
-                	if (setPosRequested != -1) {
-                		pos = setPosRequested;						                	
+                synchronized (seekLock) {
+
+                    if (setPosRequested != -1) {
+                        pos = setPosRequested;
 
 
-                		pos = Math.max(Math.min(reader.length() - 1, pos), 0);
-                		reader.seek(pos);
-                		reader.readLine();
-                		setPosRequested = -1;
+                        pos = Math.max(Math.min(reader.length() - 1, pos), 0);
+                        reader.seek(pos);
+                        reader.readLine();
+                        setPosRequested = -1;
 
-                		resetClockRequired = true;
+                        resetClockRequired = true;
 
-                		if (bus != null)
-                			bus.fireEvent(DataRecord.Type.REPLAY_SKIPPED, null);
+                        if (bus != null)
+                            bus.fireEvent(DataRecord.Type.REPLAY_SKIPPED, null);
 
-                		continue;
-                	}
+                        continue;
+                    }
                 }
-                
-				long currentTimeMillis = System.currentTimeMillis();
+
+                long currentTimeMillis = System.currentTimeMillis();
 
                 if (currentTimeMillis - lastProgressNotifyTime > 500) {
 
@@ -251,7 +268,7 @@ public class FileDataInput extends RecordDataInput implements Runnable {
 
                 long lastFilePos = reader.getFilePointer();
 
-                if ((l = reader.readLine()) == null) { 
+                if ((l = reader.readLine()) == null) {
                     continue;
                 }
 
@@ -269,36 +286,13 @@ public class FileDataInput extends RecordDataInput implements Runnable {
                 } catch (IOException e1) {
                     pos = -1;
                 }
-                logger.error(String.format("error while reading record from %s near byte offset %d [%s]", getDataFile(), pos, l), e);
-                continue;
+                logger.error(String.format(Locale.UK, "error while reading record from %s near byte offset %d [%s]", getDataFile(), pos, l), e);
             }
         }
     }
 
     protected double calcProgress() throws IOException {
-        return reader.getFilePointer() / (double)fileLength;
-    }
-
-    public static Pair<Long /* record timestamp */, DataRecord> parseRecord(String line) {
-        return parseRecord(line, false);
-    }
-
-    public static Pair<Long /* record timestamp */, DataRecord> parseRecord(String line, boolean force) {
-
-        String[] vals = readRecordLine(line);
-
-        if (vals != null) {
-
-            Long logTimestamp = new Long(vals[0]);
-
-            DataRecord.Type type = DataRecord.Type.valueOf(vals[1]);
-
-            if ((type.isReplayableEvent || force) && type.isParsableEvent) {
-                return Pair.create(logTimestamp, DataRecord.create(type, Long.parseLong(vals[2]), vals[3]));
-            }			
-        }
-
-        return null;
+        return reader.getFilePointer() / (double) fileLength;
     }
 
     private void handleRecord(String line, long lastReaderPos) throws Exception {
@@ -319,13 +313,13 @@ public class FileDataInput extends RecordDataInput implements Runnable {
             clockProvider.reset(normalizedLogfileTime);
             resetClockRequired = false;
         }
-        
+
         final long currentTime = getCurrentTime();
 
         long timeDiff = batchMode ? 0 : normalizedLogfileTime - currentTime;
-        
-        if (timeDiff > 20) {					
-            logger.debug("data time {} later than current time {} - too soon to play, putting data back in reader", normalizedLogfileTime, currentTime);				
+
+        if (timeDiff > 20) {
+            logger.debug("data time {} later than current time {} - too soon to play, putting data back in reader", normalizedLogfileTime, currentTime);
             reader.seek(lastReaderPos);
             Thread.sleep(30);
             return;
@@ -340,29 +334,15 @@ public class FileDataInput extends RecordDataInput implements Runnable {
         return clockProvider.getTime();
     }
 
-    private static String[] readRecordLine(String line) {
-        int eorIdx;
-        if ((eorIdx = line.lastIndexOf(SessionRecorderConstants.END_OF_RECORD)) == -1) {
-            return null;
-        }
-
-        String s = line.substring(0, eorIdx);
-
-        String[] vals = s.split(" +");
-
-        return vals;
-    }
-
-
     @Override
     public void skipReplayTime(float velocityX) {
         if (!paused) {
-        	try {
-				seekPos((long) (this.reader.getFilePointer() - (velocityX * SKIP_BYTES)));
-			} catch (IOException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
+            try {
+                seekPos((long) (this.reader.getFilePointer() - (velocityX * SKIP_BYTES)));
+            } catch (IOException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            }
         }
     }
 
@@ -381,12 +361,12 @@ public class FileDataInput extends RecordDataInput implements Runnable {
 
         if (this.paused != paused) {
             logger.info("setting paused = {}", paused);
-            
-            
+
+
             this.paused = paused;
 
             Type event;
-            
+
             if (paused) {
                 event = DataRecord.Type.REPLAY_PAUSED;
                 clockProvider.stop();
@@ -411,7 +391,7 @@ public class FileDataInput extends RecordDataInput implements Runnable {
         };
 
         runThread.start();
-        
+
         clockProvider.reset(startTimeOffset);
         clockProvider.run();
     }

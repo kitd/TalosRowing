@@ -27,7 +27,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import org.nargila.robostroke.RoboStrokeEventBus;
 
-public class ParameterServiceTest {
+class ParameterServiceTest {
 	
 	private static final ParameterInfo BOOLEAN_PARAM = new ParameterInfo() {
 		
@@ -73,7 +73,7 @@ public class ParameterServiceTest {
 		
 		@Override
 		public Object convertFromString(String val) {
-			return new Boolean(val);
+			return Boolean.valueOf(val);
 		}
 	}; 
 
@@ -174,9 +174,9 @@ public class ParameterServiceTest {
 	}; 
 
 	
-	Parameter f = new Parameter(FLOAT_PARAM);
-	Parameter i = new Parameter(INTEGER_PARAM);
-	Parameter b = new Parameter(BOOLEAN_PARAM);
+	private final Parameter f = new Parameter(FLOAT_PARAM);
+	private final Parameter i = new Parameter(INTEGER_PARAM);
+	private final Parameter b = new Parameter(BOOLEAN_PARAM);
 
 	private ParameterService ps;
 	private final RoboStrokeEventBus bus = new RoboStrokeEventBus();
@@ -192,7 +192,7 @@ public class ParameterServiceTest {
 				
 				@Override
 				public void onParameterChanged(Parameter param) {
-					intVal = (Integer)param.getValue();					
+					intVal = param.getValue();
 				}
 			}),
 			new ParameterListenerRegistration("bool", new ParameterChangeListener() {

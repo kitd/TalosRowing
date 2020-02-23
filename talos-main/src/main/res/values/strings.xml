@@ -38,7 +38,7 @@
         \nTalos Remote will ask for Networking permissions.
         \n
         \nTalos Remote is free - would you like to try it? 
-    </string>    
+    </string>
     <string name="default_session_record_dispatch_address">tshalif+talos-rowing@gmail.com</string>
     <string name="session_record_upload_size_too_large">File too large. Please record sessions shorter than %d minutes in length</string>
     <string name="file_too_large">File Too Large</string>

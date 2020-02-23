@@ -1,31 +1,25 @@
 package org.nargila.robostroke.data.media;
 
-import java.io.File;
-import java.io.IOException;
-
 import org.nargila.robostroke.RoboStroke;
 import org.nargila.robostroke.data.SynchedFileDataInput;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
+import java.io.IOException;
+
 
 public class MediaSynchedFileDataInput extends SynchedFileDataInput {
 
-    private static final Logger logger = LoggerFactory.getLogger(MediaSynchedFileDataInput.class);
-
     public static final String PROP_TIME_OFFSET = "timeOffset";
-    
     public static final String PROP_TALOS_DATA = "talosData";
-
     public static final String PROP_MEDIA_FILE = "mediaFile";
-
     public static final String PROP_VIDEO_EFFECT = "videoEffect";
-
     public static final String PROP_SYCH_MARK_ID = "synchMarkId";
-
+    private static final Logger logger = LoggerFactory.getLogger(MediaSynchedFileDataInput.class);
     private final ExternalMedia media;
 
-    public MediaSynchedFileDataInput(RoboStroke roboStroke, File dataFile, ExternalMedia _media, long synchTimeOffset, int synchMarkId) throws IOException {
+    private MediaSynchedFileDataInput(RoboStroke roboStroke, File dataFile, ExternalMedia _media, long synchTimeOffset, int synchMarkId) throws IOException {
         super(roboStroke, dataFile, synchTimeOffset, synchMarkId);
 
         this.media = _media;
@@ -33,7 +27,7 @@ public class MediaSynchedFileDataInput extends SynchedFileDataInput {
         this.media.addEventListener(new ExternalMedia.EventListener() {
 
             @Override
-            public void onEvent(ExternalMedia.EventType event, Object data) {
+            public void onEvent(ExternalMedia.EventType event) {
                 switch (event) {
                     case DURATION:
                         setSeakable(media.getDuration() != 0);
@@ -57,7 +51,7 @@ public class MediaSynchedFileDataInput extends SynchedFileDataInput {
     @Override
     public void stop() {
         logger.info("stopping media..");
-        media.stop();    	
+        media.stop();
         super.stop();
     }
 
@@ -68,8 +62,8 @@ public class MediaSynchedFileDataInput extends SynchedFileDataInput {
         media.start();
     }
 
-    public void skipTime(long ms) {
-        double pos = (double)(media.getTime() + ms) / media.getDuration();
+    private void skipTime(long ms) {
+        double pos = (double) (media.getTime() + ms) / media.getDuration();
         setPos(pos);
     }
 
@@ -83,8 +77,8 @@ public class MediaSynchedFileDataInput extends SynchedFileDataInput {
     }
 
     @Override
-    protected double calcProgress() throws IOException {    	
-        return media.getDuration() == 0 ? 0.0 : (double)media.getTime() / media.getDuration();
+    protected double calcProgress() throws IOException {
+        return media.getDuration() == 0 ? 0.0 : (double) media.getTime() / media.getDuration();
     }
 
     @Override
@@ -106,7 +100,7 @@ public class MediaSynchedFileDataInput extends SynchedFileDataInput {
     }
 
     @Override
-    protected void onSetPosPending(double pos) {
+    protected void onSetPosPending() {
         setPaused(true);
     }
 
@@ -131,6 +125,6 @@ public class MediaSynchedFileDataInput extends SynchedFileDataInput {
     }
 
     public boolean step() {
-        return media.step();        
+        return media.step();
     }
 }

@@ -60,7 +60,7 @@ class RollView extends FrameLayout {
 		addView(layout, new LayoutParams(
 				LayoutParams.FILL_PARENT, 
 				LayoutParams.FILL_PARENT));
-		this.type_text = (TextView) layout.findViewById(R.id.roll_type_lable);
+		this.type_text = layout.findViewById(R.id.roll_type_lable);
 		this.primaryView = new RollViewlet(getContext(), layout.findViewById(R.id.roll_primary_view)); 
 		this.secondaryView = new RollViewlet(getContext(), layout.findViewById(R.id.roll_secondary_view));
 	}

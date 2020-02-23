@@ -1,47 +1,37 @@
 package org.nargila.robostroke;
 
+import org.nargila.robostroke.common.ClockTime;
+
 import java.io.InputStream;
 import java.util.Properties;
 
-import org.nargila.robostroke.common.ClockTime;
+class TestProperties {
 
-public class TestProperties  {
-
-	@SuppressWarnings("serial")
-	public static class NoSuchProperty extends IllegalArgumentException {
-
-		public NoSuchProperty(String msg) {
-			super(msg);
-		}
-	}
-	
     private final String testName;
     private final Properties testProperties = new Properties();
-    
-    public TestProperties() throws Exception {
-    	this.testName = getClass().getSimpleName();
-    	String propFileName = testName + ".properties";
-		InputStream resourceAsStream = getClass().getResourceAsStream(propFileName);
-		
-		if (resourceAsStream == null) {
-			throw new Exception("test property file " + propFileName + " not found (package " + getClass().getPackage().getName() + ")");
-		}
-		
-		testProperties.load(resourceAsStream);
-    }
-    
-    
-    public static String getCallingMethodName() {
-    	return getCallingMethodName(null);
+    TestProperties() throws Exception {
+        this.testName = getClass().getSimpleName();
+        String propFileName = testName + ".properties";
+        InputStream resourceAsStream = getClass().getResourceAsStream(propFileName);
+
+        if (resourceAsStream == null) {
+            throw new Exception("test property file " + propFileName + " not found (package " + getClass().getPackage().getName() + ")");
+        }
+
+        testProperties.load(resourceAsStream);
     }
 
-    public static String getCallingMethodName(String callee) {
+    public static String getCallingMethodName() {
+        return getCallingMethodName(null);
+    }
+
+    private static String getCallingMethodName(String callee) {
 
         if (callee == null) {
             callee = "getCallingMethodName";
         }
 
-        StackTraceElement e[] = Thread.currentThread().getStackTrace();
+        StackTraceElement[] e = Thread.currentThread().getStackTrace();
         boolean nextIsCaller = false;
 
         for (StackTraceElement s : e) {
@@ -49,56 +39,55 @@ public class TestProperties  {
             if (nextIsCaller) {
                 return s.getMethodName();
             }
-            
+
             nextIsCaller = s.getMethodName().equals(callee);
         }
 
         throw new AssertionError("HDIGH: getMethodName failed");
     }
 
-
     @SuppressWarnings("unchecked")
-	public <T> T v(String name, T defVal) {
+    <T> T v(String name, T defVal) {
         try {
-        	return (T) v(name, defVal.getClass());
+            return (T) v(name, defVal.getClass());
         } catch (NoSuchProperty p) {
-        	return defVal;
+            return defVal;
         }
     }
 
-    public String v(String name) {
+    String v(String name) {
         String caller = getCallingMethodName("v"); // should return test method name from which v() was called
         return v(caller, name, String.class);
     }
 
-    public <T> T v(String name, Class<T> clazz) {
+    <T> T v(String name, Class<T> clazz) {
         String caller = getCallingMethodName("v"); // should return test method name from which v() was called
         return v(caller, name, clazz);
     }
 
     @SuppressWarnings("unchecked")
-	private <T> T v(String caller, String name, Class<T> clazz) {
+    private <T> T v(String caller, String name, Class<T> clazz) {
 
-    	String[] candidates = {
-    			caller + "." + name,
-    			name
-    	};
-    	
-    	String val = null;
-    	
-    	for (String varName: candidates) {
+        String[] candidates = {
+                caller + "." + name,
+                name
+        };
 
-    		val = testProperties.getProperty(varName);
+        String val = null;
 
-    		if (val != null) {
-    			break;
-    		}
-    	}
-    	
-    	if (val == null) {
-    		throw new NoSuchProperty("test property " + name + " was not found in " + testName + " for caller '" + caller + "'");
-    	}
-    	
+        for (String varName : candidates) {
+
+            val = testProperties.getProperty(varName);
+
+            if (val != null) {
+                break;
+            }
+        }
+
+        if (val == null) {
+            throw new NoSuchProperty("test property " + name + " was not found in " + testName + " for caller '" + caller + "'");
+        }
+
         Object res;
 
         if (clazz == ClockTime.class) {
@@ -112,9 +101,17 @@ public class TestProperties  {
         } else if (clazz == Double.class) {
             res = new Double(val);
         } else {
-           throw new AssertionError("unhandled template class " + clazz.getName());
+            throw new AssertionError("unhandled template class " + clazz.getName());
         }
 
         return (T) res;
+    }
+
+    @SuppressWarnings("serial")
+    static class NoSuchProperty extends IllegalArgumentException {
+
+        NoSuchProperty(String msg) {
+            super(msg);
+        }
     }
 }

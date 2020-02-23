@@ -81,17 +81,12 @@ public class RollViewGroup extends LinearLayout implements DataUpdatable {
 		}
 		@Override
 		public void onSensorData(long timestamp, Object value) {
-			switch (mode) {
-			case CURRENT:
-
+			// nothing to do
+			if (mode == ViewType.CURRENT) {
 				float[] values = (float[]) value;
 
 				RollView rollView = rollViews[ViewType.CURRENT.ordinal()];
 				rollView.setRoll(values[DataIdx.ORIENT_ROLL]);
-				break;
-				default:
-					// nothing to do
-					break;
 			}
 		}		
 	}
@@ -120,7 +115,7 @@ public class RollViewGroup extends LinearLayout implements DataUpdatable {
 		rollViews = new RollView[] {
 				new RollView(context, Pair.create(RollView.ValueType.AVG, RollView.ValueType.MAX)),
 				new RollView(context, Pair.create(RollView.ValueType.AVG, RollView.ValueType.MAX)),
-				new RollView(context, Pair.create(RollView.ValueType.CUR, (RollView.ValueType)null)),
+				new RollView(context, Pair.create(RollView.ValueType.CUR, null)),
 		};
 		
 		
@@ -160,21 +155,18 @@ public class RollViewGroup extends LinearLayout implements DataUpdatable {
 		RollView[] views;
 		RollView.Mode viewMode;
 		int rightMargine;
-		
-		switch (mode) {
-		case STROKE_RECOVERY:
-			views = new RollView[] {
+
+		if (mode == ViewType.STROKE_RECOVERY) {
+			views = new RollView[]{
 					rollViews[ViewType.STROKE.ordinal()],
 					rollViews[ViewType.RECOVERY.ordinal()]
 			};
 			rightMargine = 1;
 			viewMode = RollView.Mode.SMALL;
-			break;
-			default:
-				views = new RollView[] {rollViews[mode.ordinal()]};
-				viewMode = RollView.Mode.BIG;
-				rightMargine = 0;
-				break;
+		} else {
+			views = new RollView[]{rollViews[mode.ordinal()]};
+			viewMode = RollView.Mode.BIG;
+			rightMargine = 0;
 		}
 		
 		for (RollView view: rollViews) {
